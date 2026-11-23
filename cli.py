@@ -303,7 +303,7 @@ def main() -> None:
         print()
     finally:
         conn.close()
-        print("  Disconnected. Goodbye.")
+        print("  Connection Disconnected")
 
 
 if __name__ == "__main__":
