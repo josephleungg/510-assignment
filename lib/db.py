@@ -1,9 +1,6 @@
 """
-db.py - connection, SQL helpers, friendly Oracle errors and table printing.
-
-Everything that talks to Oracle goes through query() / execute() / run_script()
-so that (a) user input is always passed as bind variables, never glued into the
-SQL text, and (b) every ORA- error is turned into a message a user can act on.
+Database helpers: connecting, running SQL with bind variables, turning
+ORA- errors into readable messages, and printing results as tables.
 """
 from __future__ import annotations
 
@@ -18,7 +15,7 @@ class DBError(Exception):
     """An error whose message is safe to show directly to the user."""
 
 
-# ORA- error number -> plain-English explanation (the cases this app can hit).
+# ORA- error codes the app can run into, with a readable message for each.
 ORA_MESSAGES = {
     1:     "That value already exists (duplicate ID, email or ISBN).",
     942:   "A table or view does not exist yet. Choose 'Create Tables' first.",
@@ -47,10 +44,8 @@ def translate(exc: oracledb.DatabaseError) -> str:
     return str(exc).strip().splitlines()[0] if str(exc).strip() else "Unknown database error."
 
 
-# --------------------------------------------------------------------------
-# SQL echo: every statement the program runs is printed to the terminal
-# --------------------------------------------------------------------------
-_show_sql_override = None      # None = follow the SHOW_SQL setting; True/False = forced (menu toggle)
+# SQL echo: print each statement before it runs
+_show_sql_override = None  # set by the 's' menu toggle; None means use SHOW_SQL
 
 
 def show_sql() -> bool:
@@ -76,16 +71,14 @@ def log_sql(sql: str, params=None) -> None:
 
 
 def run_sql(cur, sql: str, params=None):
-    """The ONE place a statement is executed: log it first (so a failing statement is still shown), then run it."""
+    """Log the statement, then run it. All SQL in the app goes through here."""
     log_sql(sql, params)
     if params:
         return cur.execute(sql, params)
     return cur.execute(sql)
 
 
-# --------------------------------------------------------------------------
 # Connection
-# --------------------------------------------------------------------------
 def load_env(path: str = ".env") -> None:
     """Tiny .env reader (KEY=VALUE per line) so no extra package is needed."""
     if not os.path.exists(path):
@@ -104,18 +97,14 @@ _thick_started = False
 
 def connect(user=None, password=None, dsn=None, interactive: bool = True) -> oracledb.Connection:
     """
-    Connect using DB_USER / DB_PASSWORD / DB_DSN (from .env or the environment),
-    unless user / password / dsn are passed in (the web login form does that).
-    With interactive=True (the text menu) anything missing is asked for in the
-    terminal, so a password never has to be stored in a file; with
-    interactive=False (the web app) missing values are an error.
-    DSN looks like  host:1521/service_name.
+    Connect with the given login, or DB_USER / DB_PASSWORD / DB_DSN from .env.
+    The text menu prompts for anything missing; the web app raises an error.
+    DSN format: host:1521/service_name
     """
     global _thick_started
     load_env()
     if os.environ.get("ORACLE_CLIENT_LIB") and not _thick_started:
-        # Only needed for very old servers; python-oracledb's default "thin" mode
-        # needs no Oracle Client.
+        # Thick mode is only for old servers; the default thin mode needs no Oracle Client.
         oracledb.init_oracle_client(lib_dir=os.environ["ORACLE_CLIENT_LIB"])
         _thick_started = True
 
@@ -130,15 +119,13 @@ def connect(user=None, password=None, dsn=None, interactive: bool = True) -> ora
     except oracledb.DatabaseError as exc:
         raise DBError(f"Could not connect to Oracle: {translate(exc)}") from exc
 
-    # Same date format the Assignment 4 report used, so dates print as 2026-11-22.
+    # Same date format as the Assignment 4 reports (YYYY-MM-DD).
     with conn.cursor() as cur:
         run_sql(cur, "ALTER SESSION SET NLS_DATE_FORMAT = 'YYYY-MM-DD'")
     return conn
 
 
-# --------------------------------------------------------------------------
 # Running SQL
-# --------------------------------------------------------------------------
 def query(conn, sql: str, params: dict | None = None):
     """Run a SELECT. Returns (column_names, rows)."""
     try:
@@ -165,10 +152,9 @@ def execute(conn, sql: str, params: dict | None = None) -> int:
 
 def split_sql(text: str) -> list[str]:
     """
-    Split a .sql file into single statements.
-    The driver runs ONE statement at a time (and rejects the trailing ';'),
-    so we split on ';' while ignoring semicolons inside quotes and dropping
-    -- line comments and /* block */ comments.
+    Split a .sql file into separate statements. The driver runs one statement
+    at a time without the trailing ';', so split on ';' outside of quotes and
+    skip -- and /* */ comments.
     """
     statements, buf = [], []
     i, n, in_str = 0, len(text), False
@@ -215,7 +201,7 @@ def run_script(conn, path: str) -> int:
     try:
         with conn.cursor() as cur:
             for stmt in statements:
-                if stmt.upper() == "COMMIT":     # we commit ourselves at the end
+                if stmt.upper() == "COMMIT":  # committed once at the end
                     continue
                 try:
                     run_sql(cur, stmt)
@@ -230,9 +216,7 @@ def run_script(conn, path: str) -> int:
     return done
 
 
-# --------------------------------------------------------------------------
 # Printing
-# --------------------------------------------------------------------------
 def format_value(value) -> str:
     """Turn a database value into display text."""
     if value is None:

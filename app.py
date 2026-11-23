@@ -1,21 +1,10 @@
-#!/usr/bin/env python3
 """
-CPS510 - Database Systems I - Assignment 9 (bonus)
-Library Database Management System - Flask web interface
+CPS510 Assignment 9 (bonus): Flask web interface for the Library DBMS.
 Section 06, Team 04
 
-Run:  python app.py     then open  http://127.0.0.1:5001
-
-Same features as the text menu (cli.py), reusing the same lib/ code:
-  Home          Drop / Create / Populate Tables, row counts
-  Queries       every report from lib/reports.py, with input forms
-  Tables        one page per table: list, search, add, edit, delete
-  Circulation   check out, return and renew
-This file only handles web requests; all SQL is in lib/.
-
-It is a single-user local app: one shared database connection, so the server
-runs without threads (see the bottom of this file).
-Stop the server with Ctrl+C in the terminal.
+Run with `python app.py`, then open http://127.0.0.1:5001.
+Uses the same lib/ code as cli.py; all of the SQL is in lib/.
+Single user only: one shared DB connection, so the server runs without threads.
 """
 from __future__ import annotations
 
@@ -29,16 +18,14 @@ from lib import records, reports, schema
 from lib.db import DBError, connect, format_value, load_env, query
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("FLASK_SECRET") or secrets.token_hex(16)   # needed for flash()
-app.jinja_env.filters["fmt"] = format_value        # {{ value|fmt }} prints dates/NULLs nicely
+app.secret_key = os.environ.get("FLASK_SECRET") or secrets.token_hex(16)  # needed for flash()
+app.jinja_env.filters["fmt"] = format_value  # formats dates and NULLs in templates
 
-STATE = {"conn": None}                             # the one shared database connection
-ALL_REPORTS = [rep for _, group in reports.GROUPS for rep in group]   # /queries/<n> is 1-based
+STATE = {"conn": None}  # single shared DB connection
+ALL_REPORTS = [rep for _, group in reports.GROUPS for rep in group]  # /queries/<n> is 1-based
 
 
-# --------------------------------------------------------------------------
 # Connection handling
-# --------------------------------------------------------------------------
 def _try_env_login() -> None:
     """Connect automatically when DB_USER / DB_PASSWORD / DB_DSN are all set in .env."""
     load_env()
@@ -82,15 +69,13 @@ def login():
                            dsn=request.form.get("dsn") or os.environ.get("DB_DSN", ""))
 
 
-# --------------------------------------------------------------------------
 # Home: Drop / Create / Populate
-# --------------------------------------------------------------------------
 @app.route("/")
 def index():
     try:
         counts = schema.row_counts(db())
     except DBError:
-        counts = None                      # tables do not exist yet
+        counts = None  # tables don't exist yet
     return render_template("index.html", counts=counts)
 
 
@@ -114,9 +99,7 @@ def admin(action):
     return redirect(url_for("index"))
 
 
-# --------------------------------------------------------------------------
 # Queries
-# --------------------------------------------------------------------------
 @app.route("/queries")
 def queries():
     numbered, n = [], 0
@@ -138,10 +121,10 @@ def run_query(n):
     result = None
     hints = []
     try:
-        for p in rep.params:                      # reference lists (valid genres, IDs ...)
+        for p in rep.params:  # lists of valid values
             if p.hint_sql:
                 hints.append((p.prompt, query(db(), p.hint_sql)))
-        ready = all(values.values())              # run once every parameter has a value
+        ready = all(values.values())  # only run once every input is filled in
         if ready:
             binds = {}
             for p in rep.params:
@@ -158,9 +141,7 @@ def run_query(n):
     return render_template("query.html", n=n, rep=rep, values=values, hints=hints, result=result)
 
 
-# --------------------------------------------------------------------------
 # Tables: list / search / add / edit / delete
-# --------------------------------------------------------------------------
 def _table_or_404(name: str) -> records.TableDef:
     if name not in records.TABLES:
         abort(404)
@@ -262,9 +243,7 @@ def table_delete(table, pk):
     return redirect(url_for("table_list", table=table))
 
 
-# --------------------------------------------------------------------------
 # Circulation
-# --------------------------------------------------------------------------
 @app.route("/circulation")
 def circulation():
     try:

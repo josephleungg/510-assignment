@@ -1,12 +1,7 @@
-/*
- * CPS510 - Database Systems I
- * Assignment 9 - Table definitions (from Assignment 3)
- * Library Database Management System
- * Section 06, Team 04
- *
- * Tables are listed parent-first so every foreign key target already exists.
- * (Dropping is done by the application in the reverse order: see lib/schema.py.)
- */
+-- CPS510 Assignment 9: Library Database Management System
+-- Section 06, Team 04 (Nathan Romero, Joseph Leung, Aidan Lee)
+-- Tables from Assignment 3. Parent tables come first so each foreign key
+-- points at a table that already exists.
 
 CREATE TABLE Publisher (
   PublisherID  NUMBER(10),

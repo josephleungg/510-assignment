@@ -1,16 +1,10 @@
 #!/usr/bin/env python3
 """
-CPS510 - Database Systems I - Assignment 9
-Library Database Management System - text menu application
+CPS510 Assignment 9: text menu for the Library DBMS.
 Section 06, Team 04
 
-Run:  python cli.py
-
-Main menu:  1 Drop Tables | 2 Create Tables | 3 Populate Tables |
-            4 Query Tables | 5 Add / Edit / Delete Records | 0 Exit
-
-This file is only the user interface (menus and prompts).  All SQL lives in
-lib/schema.py, lib/reports.py and lib/records.py, so a web front end can reuse it.
+Run with `python cli.py`. This file only handles menus and prompts;
+the SQL is in lib/schema.py, lib/reports.py and lib/records.py.
 """
 from __future__ import annotations
 
@@ -24,9 +18,7 @@ class Cancel(Exception):
     """Raised when the user leaves a prompt blank to back out."""
 
 
-# --------------------------------------------------------------------------
-# Small input helpers
-# --------------------------------------------------------------------------
+# Input helpers
 def ask(prompt: str, *, required: bool = True, default: str = "") -> str:
     """Prompt for text. A blank answer cancels when the value is required."""
     suffix = f" [{default}]" if default else ""
@@ -84,9 +76,7 @@ def show_row(conn, table: str, pk_value: int) -> None:
     print_table(cols, rows)
 
 
-# --------------------------------------------------------------------------
-# Menu option 1-3: Drop / Create / Populate
-# --------------------------------------------------------------------------
+# Menu options 1-3: Drop / Create / Populate
 def do_drop(conn) -> None:
     if input("  This deletes ALL tables and data. Type yes to continue: ").strip().lower() != "yes":
         raise Cancel()
@@ -107,9 +97,7 @@ def do_populate(conn) -> None:
     print("  Done.")
 
 
-# --------------------------------------------------------------------------
 # Menu option 4: Query Tables
-# --------------------------------------------------------------------------
 def query_menu(conn) -> None:
     # Flatten the report groups into one numbered list.
     while True:
@@ -152,9 +140,7 @@ def run_one_report(conn, rep: reports.Report) -> None:
     pause()
 
 
-# --------------------------------------------------------------------------
 # Menu option 5: Add / Edit / Delete records and circulation
-# --------------------------------------------------------------------------
 def records_menu(conn) -> None:
     actions = {
         "1": ("Check out a book", do_checkout),
@@ -257,9 +243,7 @@ def do_browse(conn) -> None:
     print_table(cols, rows)
 
 
-# --------------------------------------------------------------------------
 # Main menu
-# --------------------------------------------------------------------------
 def main() -> None:
     try:
         conn = connect()

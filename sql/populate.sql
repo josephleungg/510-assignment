@@ -1,20 +1,14 @@
-/*
- * CPS510 - Database Systems I
- * Assignment 9 - sample (dummy) data for the Library DBMS
- * Section 06, Team 04
- *
- * Rows are inserted parent-first (Publisher, Author, Member, Staff, Book, Loan)
- * so every foreign key already exists. The data deliberately contains the
- * special cases the reports need to show:
- *   - a publisher with no books            (NoBooks Press)
- *   - a staff member who is also a member  (Daniel Brown, Olivia Chen)
- *   - a staff member with zero loans       (Marcus Reid -> outer join in Staff_Loan_Summary)
- *   - several overdue loans, one member with two overdue (Eva Martinez)
- *   - books that were never borrowed       (used by the MINUS report)
- *   - late returns                         (ReturnDate > DueDate)
- * Active-loan dates are relative to SYSDATE so the overdue reports stay
- * meaningful no matter when the demo is run.
- */
+-- CPS510 Assignment 9: Library Database Management System
+-- Section 06, Team 04 (Nathan Romero, Joseph Leung, Aidan Lee)
+-- Dummy data. Parent tables are filled first so the foreign keys resolve.
+-- Special cases used by the reports:
+--   NoBooks Press has no books
+--   Daniel Brown and Olivia Chen are both staff and members
+--   Marcus Reid has no loans (outer join in Staff_Loan_Summary)
+--   several overdue loans, two of them Eva Martinez's
+--   some books were never borrowed (MINUS query)
+--   some books were returned late
+-- Open loans use SYSDATE offsets so they stay current/overdue on any demo day.
 
 -- Publishers
 INSERT INTO Publisher (PublisherID, Name, Address, Phone, Email) VALUES (1, 'Penguin Books', '123 Main St, Toronto', '416-555-0101', 'info@penguinbooks.com');

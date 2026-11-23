@@ -1,6 +1,4 @@
-"""
-schema.py - the first three menu options: Drop, Create and Populate Tables.
-"""
+"""Menu options 1-3: Drop, Create and Populate Tables."""
 from __future__ import annotations
 
 import os
@@ -11,7 +9,7 @@ from .db import DBError, execute, query, run_script, run_sql, translate
 
 SQL_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "sql")
 
-# Child tables first, so a foreign key never blocks a drop (same order as Assignment 3).
+# Child tables first so foreign keys don't block the drops.
 TABLES_DROP_ORDER = ["Loan", "Book", "Member", "Staff", "Author", "Publisher"]
 VIEWS = ["Overdue_Loans", "Staff_Loan_Summary", "ActiveLoans"]
 
@@ -32,8 +30,8 @@ def _drop(conn, kind: str, name: str) -> str:
 
 def drop_tables(conn) -> list[str]:
     """
-    Menu option 1.  Views are dropped first: dropping a table leaves the views
-    that use it behind as INVALID objects, so they would otherwise pile up.
+    Menu option 1. Views are dropped first, since dropping a table leaves
+    its views behind as invalid objects.
     """
     log = [_drop(conn, "VIEW", v) for v in VIEWS]
     log += [_drop(conn, "TABLE", t) for t in TABLES_DROP_ORDER]
@@ -41,14 +39,14 @@ def drop_tables(conn) -> list[str]:
 
 
 def create_tables(conn) -> list[str]:
-    """Menu option 2.  Runs create.sql (Assignment 3) then views.sql (Assignment 4)."""
+    """Menu option 2. Runs create.sql (A3 tables), then views.sql (A4 views)."""
     n_tables = run_script(conn, os.path.join(SQL_DIR, "create.sql"))
     n_views = run_script(conn, os.path.join(SQL_DIR, "views.sql"))
     return [f"  created {n_tables} tables", f"  created {n_views} views"]
 
 
 def row_counts(conn) -> list[tuple[str, int]]:
-    """Number of rows in every table (names come from our own fixed list)."""
+    """Row count for each table."""
     counts = []
     for table in reversed(TABLES_DROP_ORDER):
         _, rows = query(conn, f"SELECT COUNT(*) FROM {table}")
@@ -58,10 +56,10 @@ def row_counts(conn) -> list[tuple[str, int]]:
 
 def populate_tables(conn) -> list[str]:
     """
-    Menu option 3.  Loads sql/populate.sql.  Refuses to run on top of existing
-    data (it would just fail on the duplicate primary keys half-way through).
+    Menu option 3. Runs sql/populate.sql. Stops if the tables already have
+    data, since the inserts would fail on duplicate keys.
     """
-    _, rows = query(conn, "SELECT COUNT(*) FROM Publisher")      # ORA-00942 if no tables
+    _, rows = query(conn, "SELECT COUNT(*) FROM Publisher")  # ORA-00942 if no tables
     if rows[0][0] > 0:
         raise DBError("The tables already contain data. Use 'Drop Tables' then 'Create Tables' first.")
     n = run_script(conn, os.path.join(SQL_DIR, "populate.sql"))

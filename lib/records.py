@@ -1,10 +1,8 @@
 """
-records.py - the write side of the application: add, edit, delete and the
-three circulation actions (check out, return, renew).
+Write operations: add, edit and delete rows, plus check out, return and renew.
 
-Table and column names are NEVER taken from user input: they come from the
-TABLES dictionary below, and every value is passed as a bind variable.
-The same dictionary is meant to drive the web forms later (Assignment 9 bonus).
+Table and column names only come from the TABLES dictionary below (never from
+user input), and all values are passed as bind variables.
 """
 from __future__ import annotations
 
@@ -13,8 +11,8 @@ from datetime import date, datetime
 
 from .db import DBError, execute, query
 
-LOAN_DAYS = 14     # standard loan period for a check-out
-RENEW_DAYS = 7     # extra days added by a renewal
+LOAN_DAYS = 14  # standard loan period
+RENEW_DAYS = 7  # days added by a renewal
 
 
 @dataclass(frozen=True)
@@ -23,7 +21,7 @@ class Col:
     kind: str = "str"            # "str" | "int" | "date"
     required: bool = False       # NOT NULL in the schema
     default_today: bool = False  # blank input on ADD means "today"
-    fk: tuple | None = None      # (parent table, SQL label expression) -> web form shows a dropdown
+    fk: tuple | None = None      # (parent table, label expression); shown as a dropdown in the web form
 
 
 @dataclass(frozen=True)
@@ -57,9 +55,7 @@ TABLES: dict[str, TableDef] = {
 }
 
 
-# --------------------------------------------------------------------------
 # Input conversion
-# --------------------------------------------------------------------------
 def parse(col: Col, text: str | None, *, adding: bool):
     """Convert what the user typed into a Python value for the bind variable."""
     text = (text or "").strip()
@@ -68,7 +64,7 @@ def parse(col: Col, text: str | None, *, adding: bool):
             return date.today()
         if col.required:
             raise DBError(f"{col.name} is required.")
-        return None                      # optional column -> NULL
+        return None  # optional column, store NULL
     if col.kind == "int":
         try:
             return int(text)
@@ -88,9 +84,7 @@ def _table(name: str) -> TableDef:
     return TABLES[name]
 
 
-# --------------------------------------------------------------------------
 # Generic read / add / edit / delete
-# --------------------------------------------------------------------------
 def browse(conn, table: str):
     """Every row of a table, ordered by primary key."""
     t = _table(table)
@@ -105,8 +99,8 @@ def find(conn, table: str, pk_value: int):
 
 def next_id(conn, table: str) -> int:
     """
-    The schema (Assignment 3) has no sequences, so the next key is MAX + 1.
-    Fine for a single-user demo; a multi-user system would use a sequence.
+    Next primary key as MAX + 1, since the schema has no sequences.
+    Fine for a single user; a multi-user system would use a sequence.
     """
     t = _table(table)
     _, rows = query(conn, f"SELECT NVL(MAX({t.pk}), 0) + 1 FROM {table}")
@@ -151,7 +145,7 @@ def update_row(conn, table: str, pk_value: int, raw: dict) -> None:
 
 
 def search_rows(conn, table: str, text: str):
-    """Rows of a table where ANY column contains the text (case-insensitive)."""
+    """Rows where any column contains the text (case-insensitive)."""
     t = _table(table)
     names = [t.pk] + [c.name for c in t.cols]
     where = " OR ".join(f"UPPER(TO_CHAR({n})) LIKE '%' || UPPER(:q) || '%'" for n in names)
@@ -159,7 +153,7 @@ def search_rows(conn, table: str, text: str):
 
 
 def fk_options(conn, parent: str, label_sql: str):
-    """(id, label) pairs for a dropdown. parent / label_sql come from the TABLES dictionary only."""
+    """(id, label) pairs for a dropdown. parent and label_sql come from TABLES."""
     pk = _table(parent).pk
     _, rows = query(conn, f"SELECT {pk}, {label_sql} FROM {parent} ORDER BY {pk}")
     return [(r[0], f"{r[0]} - {r[1]}") for r in rows]
@@ -186,9 +180,8 @@ def circulation_options(conn) -> dict:
 
 def delete_record(conn, table: str, pk_value: int) -> None:
     """
-    DELETE one row.  The schema has no ON DELETE CASCADE, so Oracle refuses (ORA-02292)
-    when other rows still point at it - e.g. a member with loan history.  db.translate()
-    turns that into a readable message.  Deleting is only possible for 'leaf' rows.
+    Delete one row. There is no ON DELETE CASCADE, so Oracle refuses (ORA-02292)
+    if other rows still reference it, e.g. a member with loan history.
     """
     t = _table(table)
     changed = execute(conn, f"DELETE FROM {table} WHERE {t.pk} = :id", {"id": pk_value})
@@ -196,15 +189,12 @@ def delete_record(conn, table: str, pk_value: int) -> None:
         raise DBError(f"No {table} with ID {pk_value}.")
 
 
-# --------------------------------------------------------------------------
-# Circulation (the everyday library actions from Assignment 1)
-# --------------------------------------------------------------------------
+# Circulation: check out, return, renew
 def checkout_book(conn, book_id: int, member_id: int, staff_id: int) -> int:
     """
-    Check a book out: INSERT a Loan due LOAN_DAYS from today.
-    Business rule the schema cannot express: a book can only be out once, so we
-    refuse if an unreturned loan already exists for it.  Unknown book / member /
-    staff IDs are caught by the foreign keys (ORA-02291).
+    Insert a Loan due LOAN_DAYS from today. The schema can't stop a book from
+    being lent out twice at once, so refuse if it has an unreturned loan.
+    Unknown book, member or staff IDs are caught by the foreign keys (ORA-02291).
     """
     _, rows = query(conn, "SELECT COUNT(*) FROM Loan WHERE BookID = :b AND ReturnDate IS NULL",
                     {"b": book_id})
@@ -228,7 +218,7 @@ def return_book(conn, loan_id: int) -> None:
 
 
 def renew_loan(conn, loan_id: int) -> None:
-    """Renew: push the due date back RENEW_DAYS, only for loans that are still out."""
+    """Add RENEW_DAYS to the due date of a loan that is still out."""
     changed = execute(conn,
                       "UPDATE Loan SET DueDate = DueDate + :days "
                       "WHERE LoanID = :id AND ReturnDate IS NULL",

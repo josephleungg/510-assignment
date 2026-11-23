@@ -1,17 +1,10 @@
-/*
- * CPS510 - Database Systems I
- * Assignment 9 - Views (from Assignment 4, Part 2)
- * Library Database Management System
- * Section 06, Team 04
- *
- * Created right after the tables. Dropping a table does NOT drop the views
- * built on it (they become INVALID), so the application drops them explicitly.
- */
+-- CPS510 Assignment 9: Library Database Management System
+-- Section 06, Team 04 (Nathan Romero, Joseph Leung, Aidan Lee)
+-- Views from Assignment 4 Part 2. Dropping a table doesn't drop its views,
+-- so the app drops these separately (see lib/schema.py).
 
-/* VIEW: Overdue_Loans
-*  Every book that is currently checked out (no return date) and
-*  past its due date, with the borrowing member's contact info.
-*  Joins Loan, Book and Member. Read-only because it is a report. */
+-- Overdue_Loans: books still checked out and past their due date,
+-- with the member's contact info. Read only since it's a report.
 CREATE OR REPLACE VIEW Overdue_Loans
       (Loan_ID, Book_Title, Member_Name, Member_Email, Member_Phone,
        Loan_Date, Due_Date, Days_Overdue) AS
@@ -26,9 +19,8 @@ CREATE OR REPLACE VIEW Overdue_Loans
          AND l.DueDate < TRUNC(SYSDATE))
       WITH READ ONLY;
 
-/* VIEW: Staff_Loan_Summary
-*  How many loans each staff member has processed and how many of
-*  those are still out. Outer join keeps staff with zero loans. */
+-- Staff_Loan_Summary: loans processed and still out for each staff member.
+-- The outer join keeps staff with zero loans.
 CREATE OR REPLACE VIEW Staff_Loan_Summary
       (Staff_Name, Position, Loans_Processed, Loans_Open) AS
       (SELECT s.FirstName || ' ' || s.LastName, s.Position,
@@ -38,8 +30,7 @@ CREATE OR REPLACE VIEW Staff_Loan_Summary
        GROUP BY s.StaffID, s.FirstName, s.LastName, s.Position)
       WITH READ ONLY;
 
-/* VIEW: ActiveLoans
-*  Books that are currently on loan */
+-- ActiveLoans: books currently on loan
 CREATE OR REPLACE VIEW ActiveLoans AS
 SELECT l.LoanID, b.Title, m.FirstName, m.LastName, l.DueDate
 FROM Loan l, Book b, Member m

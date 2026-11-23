@@ -1,13 +1,9 @@
 """
-reports.py - every read-only query of the application ("Query Tables" menu).
+All read-only queries for the Query Tables menu.
 
-Parts 1 and 2 are the Assignment 4 queries, kept word-for-word where possible so
-the relational algebra written for Assignment 10 still matches.  The only
-change is that values that used to be hard-coded ('Horror', MemberID = 1, ...)
-are now bind variables (:genre, :member_id ...) that the user types in.
-
-Each Report holds its SQL text, the parameters to ask for, and a short note on
-what it demonstrates.  The menu (cli.py) is generic: it just walks GROUPS.
+Parts 1 and 2 are the Assignment 4 queries. The only change is that
+hard-coded values ('Horror', MemberID = 1) are now bind variables
+(:genre, :member_id) entered by the user.
 """
 from __future__ import annotations
 
@@ -29,7 +25,7 @@ class Report:
     title: str
     sql: str
     params: list[Param] = field(default_factory=list)
-    note: str = ""               # what this query demonstrates (shown in the menu / for the oral)
+    note: str = ""               # what the query demonstrates, shown in the menu
 
 
 # Reference lists shown before prompting, so the user does not have to guess IDs.
@@ -38,9 +34,7 @@ HINT_PUBLISHERS = "SELECT PublisherID, Name FROM Publisher ORDER BY PublisherID"
 HINT_MEMBERS = ("SELECT MemberID, FirstName || ' ' || LastName AS Member_Name "
                 "FROM Member ORDER BY MemberID")
 
-# ---------------------------------------------------------------------------
-# PART 1 - simple queries (Assignment 4, part 1)
-# ---------------------------------------------------------------------------
+# Part 1: simple queries (Assignment 4 part 1)
 PART1 = [
     Report(
         "Books of a genre",
@@ -85,10 +79,7 @@ PART1 = [
     ),
 ]
 
-# ---------------------------------------------------------------------------
-# PART 2 - views and joins (Assignment 4, part 2)
-# The views themselves are created in sql/views.sql.
-# ---------------------------------------------------------------------------
+# Part 2: views and join queries (Assignment 4 part 2). The views are in sql/views.sql.
 PART2 = [
     Report(
         "Overdue report (view Overdue_Loans)",
@@ -120,7 +111,7 @@ PART2 = [
     ),
     Report(
         "Full circulation log",
-        # 4-table join: Loan, Book, Member, Staff.  NVL shows 'Not returned' for NULL.
+        # Joins Loan, Book, Member, Staff. NVL shows 'Not returned' when ReturnDate is NULL.
         """SELECT l.LoanID AS Loan_ID,
                   b.Title AS Book_Title,
                   m.FirstName || ' ' || m.LastName AS Member_Name,
@@ -137,7 +128,7 @@ PART2 = [
     ),
     Report(
         "Borrowing history of one member",
-        # 4-table join: Member, Loan, Book, Author.
+        # Joins Member, Loan, Book, Author.
         """SELECT b.Title AS Book_Title,
                   a.FirstName || ' ' || a.LastName AS Author_Name,
                   b.Genre,
@@ -154,7 +145,7 @@ PART2 = [
     ),
     Report(
         "Checked-out books with author and publisher",
-        # 4-table join: Loan, Book, Author, Publisher.
+        # Joins Loan, Book, Author, Publisher.
         """SELECT b.Title AS Book_Title,
                   a.FirstName || ' ' || a.LastName AS Author_Name,
                   p.Name AS Publisher_Name,
@@ -192,15 +183,11 @@ PART2 = [
     ),
 ]
 
-# ---------------------------------------------------------------------------
-# ADVANCED - set operations, aggregates, subqueries.
-# These were written for Assignment 9 as stand-ins; replace or add your own
-# Assignment 5 advanced queries here (same Report(...) format).
-# ---------------------------------------------------------------------------
+# Advanced queries: set operations, aggregates and subqueries
 ADVANCED = [
     Report(
         "Books that have never been borrowed",
-        # MINUS = every book, minus the books that appear in at least one loan.
+        # MINUS: all books, minus the ones with at least one loan.
         """SELECT b.BookID, b.Title FROM Book b
            MINUS
            SELECT b.BookID, b.Title FROM Book b, Loan l WHERE b.BookID = l.BookID
@@ -209,7 +196,7 @@ ADVANCED = [
     ),
     Report(
         "Members who borrowed BOTH of two genres",
-        # INTERSECT = members found in both result sets.
+        # INTERSECT: members who appear in both results.
         """SELECT m.MemberID, m.FirstName || ' ' || m.LastName AS Member_Name
            FROM Member m, Loan l, Book b
            WHERE m.MemberID = l.MemberID AND l.BookID = b.BookID
@@ -225,8 +212,7 @@ ADVANCED = [
     ),
     Report(
         "Combined contact list (members + staff)",
-        # UNION merges two tables into one list and removes duplicates; the literal
-        # column tells the reader where each row came from.
+        # UNION removes duplicates; Person_Type shows which table each row came from.
         """SELECT FirstName, LastName, Email, 'Member' AS Person_Type FROM Member
            UNION
            SELECT FirstName, LastName, Email, 'Staff' AS Person_Type FROM Staff
@@ -235,7 +221,7 @@ ADVANCED = [
     ),
     Report(
         "Members with at least N loans",
-        # HAVING filters AFTER grouping (WHERE filters before), so it can use COUNT.
+        # HAVING filters after grouping, so it can use COUNT.
         """SELECT m.MemberID, m.FirstName || ' ' || m.LastName AS Member_Name,
                   COUNT(l.LoanID) AS Total_Loans
            FROM Member m, Loan l
@@ -259,8 +245,8 @@ ADVANCED = [
     ),
     Report(
         "Authors with more books than the average author",
-        # The inner query counts books per author, the middle one averages those
-        # counts, and HAVING compares each author's count to that average.
+        # Inner query counts books per author, the next one averages those counts,
+        # and HAVING keeps authors above that average.
         """SELECT a.FirstName || ' ' || a.LastName AS Author_Name,
                   COUNT(b.BookID) AS Books_In_Catalog
            FROM Author a, Book b
@@ -273,14 +259,12 @@ ADVANCED = [
     ),
 ]
 
-# ---------------------------------------------------------------------------
-# SEARCH - find specific records from free text typed by the user.
-# ---------------------------------------------------------------------------
+# Search: find records that match text typed by the user
 SEARCH = [
     Report(
         "Search books (title, author, genre or ISBN) + availability",
-        # The same :q is reused several times; LIKE '%..%' = "contains".
-        # The CASE/EXISTS column answers "is it on loan right now?" (Assignment 1).
+        # :q is reused in each condition; LIKE '%..%' means "contains".
+        # CASE/EXISTS shows whether the book is currently on loan.
         """SELECT b.BookID, b.Title,
                   a.FirstName || ' ' || a.LastName AS Author_Name,
                   b.Genre, b.ISBN,

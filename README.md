@@ -8,7 +8,7 @@ Section 06, Team 04. A text-menu application connected to Oracle.
 1. Drop Tables       drops the 3 views and 6 tables (safe to run when they don't exist)
 2. Create Tables     creates the tables (Assignment 3) and views (Assignment 4)
 3. Populate Tables   loads the dummy data (5 publishers, 9 authors, 12 members, 4 staff, 20 books, 32 loans)
-4. Query Tables      24 reports + 2 searches; asks the user for genre / member ID / search text / etc.
+4. Query Tables      22 reports + 2 searches; asks the user for genre / member ID / search text / etc.
 5. Add / Edit / Delete Records
                      check out, return, renew, add / edit / delete a row in any table, browse a table
 0. Exit
