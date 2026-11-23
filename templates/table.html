@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}{{ table }} - Library DBMS{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('tables') }}">&larr; All tables</a></p>
+<h1>{{ table }}</h1>
+<div class="toolbar">
+  <form method="get" class="inline">
+    <input name="q" value="{{ q }}" placeholder="Search any column...">
+    <button type="submit">Search</button>
+    {% if q %}<a class="button secondary" href="{{ url_for('table_list', table=table) }}">Clear</a>{% endif %}
+  </form>
+  <a class="button" href="{{ url_for('table_new', table=table) }}">+ Add {{ table }}</a>
+</div>
+<div class="scroll">
+<table class="grid">
+  <thead><tr>{% for c in cols %}<th>{{ c.replace('_', ' ') }}</th>{% endfor %}<th></th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>
+      {% for v in r %}<td>{{ v|fmt }}</td>{% endfor %}
+      <td class="actions">
+        <a href="{{ url_for('table_edit', table=table, pk=r[0]) }}">Edit</a>
+        <form method="post" action="{{ url_for('table_delete', table=table, pk=r[0]) }}" class="inline"
+              onsubmit="return confirm('Delete {{ table }} {{ r[0] }}?');">
+          <button class="linklike danger-text" type="submit">Delete</button>
+        </form>
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="{{ (cols|length) + 1 }}" class="muted">No rows.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="muted">{{ rows|length }} row{{ '' if rows|length == 1 else 's' }}</p>
+{% endblock %}

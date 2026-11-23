@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Circulation - Library DBMS{% endblock %}
+{% block content %}
+<h1>Circulation</h1>
+<div class="cards">
+  <form method="post" action="{{ url_for('circulation_action', action='checkout') }}" class="card">
+    <h2>Check out a book</h2>
+    <p class="muted">Only books that are not already on loan are listed. Due in {{ days }} days.</p>
+    <label>Book <select name="book" required>
+      <option value="">-- choose --</option>
+      {% for id, label in o.books %}<option value="{{ id }}">{{ label }}</option>{% endfor %}</select></label>
+    <label>Member <select name="member" required>
+      <option value="">-- choose --</option>
+      {% for id, label in o.members %}<option value="{{ id }}">{{ label }}</option>{% endfor %}</select></label>
+    <label>Processed by <select name="staff" required>
+      <option value="">-- choose --</option>
+      {% for id, label in o.staff %}<option value="{{ id }}">{{ label }}</option>{% endfor %}</select></label>
+    <button type="submit">Check out</button>
+  </form>
+
+  <form method="post" action="{{ url_for('circulation_action', action='return') }}" class="card">
+    <h2>Return a book</h2>
+    <label>Loan <select name="loan" required>
+      <option value="">-- choose --</option>
+      {% for id, label in o.loans %}<option value="{{ id }}">{{ label }}</option>{% endfor %}</select></label>
+    <button type="submit">Return</button>
+  </form>
+
+  <form method="post" action="{{ url_for('circulation_action', action='renew') }}" class="card">
+    <h2>Renew a loan</h2>
+    <p class="muted">Adds {{ renew }} days to the due date.</p>
+    <label>Loan <select name="loan" required>
+      <option value="">-- choose --</option>
+      {% for id, label in o.loans %}<option value="{{ id }}">{{ label }}</option>{% endfor %}</select></label>
+    <button type="submit">Renew</button>
+  </form>
+</div>
+{% endblock %}

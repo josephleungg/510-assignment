@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Tables - Library DBMS{% endblock %}
+{% block content %}
+<h1>Tables</h1>
+<table class="grid narrow">
+  <thead><tr><th>Table</th><th>Rows</th><th></th></tr></thead>
+  <tbody>
+  {% for name in names %}
+    <tr><td>{{ name }}</td><td>{{ counts.get(name, '?') }}</td>
+        <td><a href="{{ url_for('table_list', table=name) }}">Browse</a> &middot;
+            <a href="{{ url_for('table_new', table=name) }}">Add</a></td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

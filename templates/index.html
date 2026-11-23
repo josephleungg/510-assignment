@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Library Database Management System</h1>
+<p class="muted">Menu: set up the database, then use Queries, Tables and Circulation.</p>
+
+<div class="cards">
+  <form method="post" action="{{ url_for('admin', action='drop') }}" class="card"
+        onsubmit="return confirm('This deletes ALL tables and data. Continue?');">
+    <h2>1. Drop Tables</h2>
+    <p>Removes the views and all six tables.</p>
+    <button class="danger" type="submit">Drop Tables</button>
+  </form>
+  <form method="post" action="{{ url_for('admin', action='create') }}" class="card">
+    <h2>2. Create Tables</h2>
+    <p>Creates the tables and views.</p>
+    <button type="submit">Create Tables</button>
+  </form>
+  <form method="post" action="{{ url_for('admin', action='populate') }}" class="card">
+    <h2>3. Populate Tables</h2>
+    <p>Loads the dummy data.</p>
+    <button type="submit">Populate Tables</button>
+  </form>
+  <div class="card">
+    <h2>4. Query Tables</h2>
+    <p>Reports, joins, views and searches.</p>
+    <a class="button" href="{{ url_for('queries') }}">Open Queries</a>
+  </div>
+  <div class="card">
+    <h2>5. Records</h2>
+    <p>Add, edit and delete rows; check out and return books.</p>
+    <a class="button" href="{{ url_for('tables') }}">Open Tables</a>
+    <a class="button secondary" href="{{ url_for('circulation') }}">Circulation</a>
+  </div>
+</div>
+
+<h2>Database status</h2>
+{% if counts is none %}
+  <p class="muted">The tables do not exist yet. Choose <b>Create Tables</b>.</p>
+{% else %}
+  <table class="grid narrow">
+    <thead><tr><th>Table</th><th>Rows</th></tr></thead>
+    <tbody>{% for name, n in counts %}<tr><td><a href="{{ url_for('table_list', table=name) }}">{{ name }}</a></td><td>{{ n }}</td></tr>{% endfor %}</tbody>
+  </table>
+{% endif %}
+{% endblock %}

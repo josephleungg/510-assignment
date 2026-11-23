@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block nav %}{% endblock %}
+{% block title %}Connect - Library DBMS{% endblock %}
+{% block content %}
+<h1>Connect to Oracle</h1>
+<form method="post" class="card narrow">
+  <label>Username <input name="user" value="{{ user }}" required autofocus></label>
+  <label>Password <input name="password" type="password" required></label>
+  <label>DSN (host:port/service) <input name="dsn" value="{{ dsn }}" required placeholder="orsrv1.cs.torontomu.ca:1521/orcldb"></label>
+  <button type="submit">Connect</button>
+</form>
+{% endblock %}

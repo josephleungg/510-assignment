@@ -23,6 +23,7 @@ class Col:
     kind: str = "str"            # "str" | "int" | "date"
     required: bool = False       # NOT NULL in the schema
     default_today: bool = False  # blank input on ADD means "today"
+    fk: tuple | None = None      # (parent table, SQL label expression) -> web form shows a dropdown
 
 
 @dataclass(frozen=True)
@@ -45,10 +46,12 @@ TABLES: dict[str, TableDef] = {
         Col("Position", required=True), Col("Email", required=True))),
     "Book": TableDef("BookID", (
         Col("Title", required=True), Col("ISBN", required=True), Col("Genre", required=True),
-        Col("AuthorID", "int", required=True), Col("PublisherID", "int", required=True))),
+        Col("AuthorID", "int", required=True, fk=("Author", "FirstName || ' ' || LastName")),
+        Col("PublisherID", "int", required=True, fk=("Publisher", "Name")))),
     "Loan": TableDef("LoanID", (
-        Col("BookID", "int", required=True), Col("MemberID", "int", required=True),
-        Col("StaffID", "int", required=True),
+        Col("BookID", "int", required=True, fk=("Book", "Title")),
+        Col("MemberID", "int", required=True, fk=("Member", "FirstName || ' ' || LastName")),
+        Col("StaffID", "int", required=True, fk=("Staff", "FirstName || ' ' || LastName")),
         Col("LoanDate", "date", required=True, default_today=True),
         Col("DueDate", "date", required=True), Col("ReturnDate", "date"))),
 }
@@ -133,6 +136,52 @@ def update_record(conn, table: str, pk_value: int, column: str, text: str) -> No
                       {"v": value, "id": pk_value})
     if changed == 0:
         raise DBError(f"No {table} with ID {pk_value}.")
+
+
+def update_row(conn, table: str, pk_value: int, raw: dict) -> None:
+    """UPDATE every editable column of one row at once (used by the web edit form)."""
+    t = _table(table)
+    values = [parse(c, raw.get(c.name), adding=False) for c in t.cols]
+    sets = ", ".join(f"{c.name} = :b{i}" for i, c in enumerate(t.cols))
+    binds = {f"b{i}": v for i, v in enumerate(values)}
+    binds["id"] = pk_value
+    changed = execute(conn, f"UPDATE {table} SET {sets} WHERE {t.pk} = :id", binds)
+    if changed == 0:
+        raise DBError(f"No {table} with ID {pk_value}.")
+
+
+def search_rows(conn, table: str, text: str):
+    """Rows of a table where ANY column contains the text (case-insensitive)."""
+    t = _table(table)
+    names = [t.pk] + [c.name for c in t.cols]
+    where = " OR ".join(f"UPPER(TO_CHAR({n})) LIKE '%' || UPPER(:q) || '%'" for n in names)
+    return query(conn, f"SELECT * FROM {table} WHERE {where} ORDER BY {t.pk}", {"q": text})
+
+
+def fk_options(conn, parent: str, label_sql: str):
+    """(id, label) pairs for a dropdown. parent / label_sql come from the TABLES dictionary only."""
+    pk = _table(parent).pk
+    _, rows = query(conn, f"SELECT {pk}, {label_sql} FROM {parent} ORDER BY {pk}")
+    return [(r[0], f"{r[0]} - {r[1]}") for r in rows]
+
+
+def circulation_options(conn) -> dict:
+    """Lists for the web circulation page: free books, members, staff, loans still out."""
+    _, books = query(conn, """SELECT b.BookID, b.Title FROM Book b
+                              WHERE NOT EXISTS (SELECT 1 FROM Loan l
+                                                WHERE l.BookID = b.BookID AND l.ReturnDate IS NULL)
+                              ORDER BY b.Title""")
+    _, out = query(conn, """SELECT l.LoanID, b.Title, m.FirstName || ' ' || m.LastName, l.DueDate
+                            FROM Loan l, Book b, Member m
+                            WHERE l.BookID = b.BookID AND l.MemberID = m.MemberID
+                              AND l.ReturnDate IS NULL
+                            ORDER BY l.DueDate""")
+    return {
+        "books": [(r[0], f"{r[0]} - {r[1]}") for r in books],
+        "members": fk_options(conn, "Member", "FirstName || ' ' || LastName"),
+        "staff": fk_options(conn, "Staff", "FirstName || ' ' || LastName"),
+        "loans": [(r[0], f"Loan {r[0]} - {r[1]} ({r[2]}), due {r[3]:%Y-%m-%d}") for r in out],
+    }
 
 
 def delete_record(conn, table: str, pk_value: int) -> None:

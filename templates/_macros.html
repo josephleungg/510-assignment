@@ -1,0 +1,16 @@
+{# Renders (columns, rows) from the database as an HTML table. Values go through |fmt (dates, NULL -> "-"). #}
+{% macro result_table(cols, rows) %}
+<div class="scroll">
+<table class="grid">
+  <thead><tr>{% for c in cols %}<th>{{ c.replace('_', ' ') }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>{% for v in r %}<td>{{ v|fmt }}</td>{% endfor %}</tr>
+  {% else %}
+    <tr><td colspan="{{ cols|length }}" class="muted">No rows.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="muted">{{ rows|length }} row{{ '' if rows|length == 1 else 's' }}</p>
+{% endmacro %}

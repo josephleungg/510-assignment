@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Queries - Library DBMS{% endblock %}
+{% block content %}
+<h1>Query Tables</h1>
+{% for heading, items in groups %}
+  <h2>{{ heading }}</h2>
+  <ul class="list">
+  {% for n, rep in items %}
+    <li><a href="{{ url_for('run_query', n=n) }}">{{ rep.title }}</a>
+        {% if rep.params %}<span class="tag">asks for input</span>{% endif %}
+        {% if rep.note %}<span class="muted"> - {{ rep.note }}</span>{% endif %}</li>
+  {% endfor %}
+  </ul>
+{% endfor %}
+{% endblock %}

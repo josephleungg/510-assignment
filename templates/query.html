@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% from "_macros.html" import result_table %}
+{% block title %}{{ rep.title }} - Library DBMS{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('queries') }}">&larr; All queries</a></p>
+<h1>{{ rep.title }}</h1>
+{% if rep.note %}<p class="muted">{{ rep.note }}</p>{% endif %}
+
+{% if rep.params %}
+<form method="get" class="card">
+  {% for p in rep.params %}
+    <label>{{ p.prompt }}
+      <input name="{{ p.name }}" value="{{ values[p.name] }}" required
+             {% if p.kind == 'int' %}type="number" step="1"{% else %}type="text"{% endif %}>
+    </label>
+  {% endfor %}
+  <button type="submit">Run query</button>
+</form>
+{% for label, (hcols, hrows) in hints %}
+  <details><summary>Valid values for {{ label }}</summary>{{ result_table(hcols, hrows) }}</details>
+{% endfor %}
+{% endif %}
+
+{% if result %}
+  {{ result_table(result[0], result[1]) }}
+{% endif %}
+
+<details class="sql"><summary>Show SQL</summary><pre>{{ rep.sql.strip() }}</pre></details>
+{% endblock %}

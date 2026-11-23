@@ -24,6 +24,7 @@ ORA_MESSAGES = {
     942:   "A table or view does not exist yet. Choose 'Create Tables' first.",
     955:   "Tables already exist. Choose 'Drop Tables' first.",
     1400:  "A required field was left empty.",
+    1017:  "Login refused: wrong username or password (passwords are case-sensitive).",
     1722:  "A number was expected.",
     2290:  "A rule was broken (for example a return or due date earlier than the loan date).",
     2291:  "That ID does not exist in the related table (check the book, member, staff, author or publisher ID).",
@@ -47,6 +48,42 @@ def translate(exc: oracledb.DatabaseError) -> str:
 
 
 # --------------------------------------------------------------------------
+# SQL echo: every statement the program runs is printed to the terminal
+# --------------------------------------------------------------------------
+_show_sql_override = None      # None = follow the SHOW_SQL setting; True/False = forced (menu toggle)
+
+
+def show_sql() -> bool:
+    """On by default. Turn off with SHOW_SQL=0 in .env, or with the 's' option in the text menu."""
+    if _show_sql_override is not None:
+        return _show_sql_override
+    return os.environ.get("SHOW_SQL", "1").strip().lower() not in ("0", "false", "no", "off")
+
+
+def set_show_sql(value: bool) -> None:
+    global _show_sql_override
+    _show_sql_override = value
+
+
+def log_sql(sql: str, params=None) -> None:
+    """Print one statement (whitespace collapsed to a single line) and its bind values."""
+    if not show_sql():
+        return
+    line = "SQL> " + " ".join(sql.split()) + ";"
+    if params:
+        line += f"\n       binds: {params}"
+    print(line, flush=True)
+
+
+def run_sql(cur, sql: str, params=None):
+    """The ONE place a statement is executed: log it first (so a failing statement is still shown), then run it."""
+    log_sql(sql, params)
+    if params:
+        return cur.execute(sql, params)
+    return cur.execute(sql)
+
+
+# --------------------------------------------------------------------------
 # Connection
 # --------------------------------------------------------------------------
 def load_env(path: str = ".env") -> None:
@@ -62,21 +99,31 @@ def load_env(path: str = ".env") -> None:
             os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
 
 
-def connect() -> oracledb.Connection:
+_thick_started = False
+
+
+def connect(user=None, password=None, dsn=None, interactive: bool = True) -> oracledb.Connection:
     """
-    Connect using DB_USER / DB_PASSWORD / DB_DSN (from .env or the environment).
-    Anything missing is asked for interactively, so a password never has to be
-    stored in a file.  DSN looks like  host:1521/service_name.
+    Connect using DB_USER / DB_PASSWORD / DB_DSN (from .env or the environment),
+    unless user / password / dsn are passed in (the web login form does that).
+    With interactive=True (the text menu) anything missing is asked for in the
+    terminal, so a password never has to be stored in a file; with
+    interactive=False (the web app) missing values are an error.
+    DSN looks like  host:1521/service_name.
     """
+    global _thick_started
     load_env()
-    if os.environ.get("ORACLE_CLIENT_LIB"):
+    if os.environ.get("ORACLE_CLIENT_LIB") and not _thick_started:
         # Only needed for very old servers; python-oracledb's default "thin" mode
         # needs no Oracle Client.
         oracledb.init_oracle_client(lib_dir=os.environ["ORACLE_CLIENT_LIB"])
+        _thick_started = True
 
-    user = os.environ.get("DB_USER") or input("Oracle username: ").strip()
-    password = os.environ.get("DB_PASSWORD") or getpass.getpass("Oracle password: ")
-    dsn = os.environ.get("DB_DSN") or input("Oracle DSN (host:1521/service): ").strip()
+    user = user or os.environ.get("DB_USER") or (input("Oracle username: ").strip() if interactive else "")
+    password = password or os.environ.get("DB_PASSWORD") or (getpass.getpass("Oracle password: ") if interactive else "")
+    dsn = dsn or os.environ.get("DB_DSN") or (input("Oracle DSN (host:1521/service): ").strip() if interactive else "")
+    if not (user and password and dsn):
+        raise DBError("Username, password and DSN are all required.")
 
     try:
         conn = oracledb.connect(user=user, password=password, dsn=dsn)
@@ -85,7 +132,7 @@ def connect() -> oracledb.Connection:
 
     # Same date format the Assignment 4 report used, so dates print as 2026-11-22.
     with conn.cursor() as cur:
-        cur.execute("ALTER SESSION SET NLS_DATE_FORMAT = 'YYYY-MM-DD'")
+        run_sql(cur, "ALTER SESSION SET NLS_DATE_FORMAT = 'YYYY-MM-DD'")
     return conn
 
 
@@ -96,7 +143,7 @@ def query(conn, sql: str, params: dict | None = None):
     """Run a SELECT. Returns (column_names, rows)."""
     try:
         with conn.cursor() as cur:
-            cur.execute(sql, params or {})
+            run_sql(cur, sql, params)
             cols = [d[0] for d in cur.description]
             return cols, cur.fetchall()
     except oracledb.DatabaseError as exc:
@@ -107,7 +154,7 @@ def execute(conn, sql: str, params: dict | None = None) -> int:
     """Run INSERT / UPDATE / DELETE, commit, and return the number of rows changed."""
     try:
         with conn.cursor() as cur:
-            cur.execute(sql, params or {})
+            run_sql(cur, sql, params)
             changed = cur.rowcount
         conn.commit()
         return changed
@@ -171,7 +218,7 @@ def run_script(conn, path: str) -> int:
                 if stmt.upper() == "COMMIT":     # we commit ourselves at the end
                     continue
                 try:
-                    cur.execute(stmt)
+                    run_sql(cur, stmt)
                 except oracledb.DatabaseError as exc:
                     snippet = " ".join(stmt.split())[:70]
                     raise DBError(f"{translate(exc)}\n    while running: {snippet}...") from exc

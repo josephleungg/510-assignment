@@ -7,7 +7,7 @@ import os
 
 import oracledb
 
-from .db import DBError, execute, query, run_script, translate
+from .db import DBError, execute, query, run_script, run_sql, translate
 
 SQL_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "sql")
 
@@ -21,7 +21,7 @@ def _drop(conn, kind: str, name: str) -> str:
     sql = f"DROP {kind} {name}" + (" CASCADE CONSTRAINTS PURGE" if kind == "TABLE" else "")
     try:
         with conn.cursor() as cur:
-            cur.execute(sql)
+            run_sql(cur, sql)
         return f"  dropped {kind.lower()} {name}"
     except oracledb.DatabaseError as exc:
         err = exc.args[0]

@@ -17,14 +17,11 @@ from __future__ import annotations
 import sys
 
 from lib import records, reports, schema
-from lib.db import DBError, connect, print_table, query
+from lib.db import DBError, connect, print_table, query, set_show_sql, show_sql
 
 
 class Cancel(Exception):
     """Raised when the user leaves a prompt blank to back out."""
-
-
-SHOW_SQL = False     # toggled from the Query menu; prints the SQL before running it
 
 
 # --------------------------------------------------------------------------
@@ -114,7 +111,6 @@ def do_populate(conn) -> None:
 # Menu option 4: Query Tables
 # --------------------------------------------------------------------------
 def query_menu(conn) -> None:
-    global SHOW_SQL
     # Flatten the report groups into one numbered list.
     while True:
         print("\n  ===== QUERY TABLES =====")
@@ -126,13 +122,13 @@ def query_menu(conn) -> None:
                 n += 1
                 index.append(rep)
                 print(f"   {n:>2}. {rep.title}")
-        print(f"\n    s. Show SQL before running: {'ON' if SHOW_SQL else 'OFF'}")
+        print(f"\n    s. Echo every SQL statement in the terminal: {'ON' if show_sql() else 'OFF'}")
         print("    0. Back")
         pick = input("  > ").strip().lower()
         if pick == "0" or pick == "":
             return
         if pick == "s":
-            SHOW_SQL = not SHOW_SQL
+            set_show_sql(not show_sql())
             continue
         if not pick.isdigit() or not (1 <= int(pick) <= len(index)):
             print("  Not a valid choice.")
@@ -151,8 +147,6 @@ def run_one_report(conn, rep: reports.Report) -> None:
     print(f"\n  --- {rep.title} ---")
     if rep.note:
         print(f"  ({rep.note})")
-    if SHOW_SQL:
-        print("\n" + "\n".join("    " + ln for ln in rep.sql.strip().splitlines()) + "\n")
     cols, rows = reports.run_report(conn, rep, values)
     print_table(cols, rows)
     pause()
@@ -303,7 +297,7 @@ def main() -> None:
         print()
     finally:
         conn.close()
-        print("  Connection Disconnected")
+        print("  Disconnected. Goodbye.")
 
 
 if __name__ == "__main__":

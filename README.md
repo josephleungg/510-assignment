@@ -46,7 +46,7 @@ then `DB_USER=library`, `DB_PASSWORD=change_me`, `DB_DSN=localhost:1521/FREEPDB1
 1. `1` Drop, `2` Create, `3` Populate (shows row counts per table).
 2. `4` Query: *Books of a genre* (type `horror`), *Overdue report*, *Staff workload* (note the staff
    member with 0 loans - that is the outer join), *Search books* (try `king`, then `dune`).
-   Press `s` in the Query menu to show the SQL before it runs.
+   Every SQL statement is echoed in the terminal as it runs (`SQL> ...;` plus its bind values). Press `s` in the Query menu to turn that off or on.
 3. `5` Check out a book that is already on loan (refused), then one that is free; return it; renew a loan.
 4. `5` Edit a member's phone number. Delete publisher 3 (NoBooks Press - works), then publisher 1 (refused:
    it has books).
@@ -56,12 +56,22 @@ then `DB_USER=library`, `DB_PASSWORD=change_me`, `DB_DSN=localhost:1521/FREEPDB1
 
 | Path | Purpose |
 |---|---|
-| `cli.py` | The menus and prompts only. |
+| `cli.py` | The text menu (prompts only). |
+| `app.py`, `templates/`, `static/` | The Flask web interface (routes only; no SQL). |
 | `lib/db.py` | Connection, `query()` / `execute()` with bind variables, ORA- error translation, SQL file splitter, table printer. |
 | `lib/schema.py` | Drop / Create / Populate. |
 | `lib/reports.py` | All read-only queries. **Add or swap in your Assignment 5 advanced queries in the `ADVANCED` list.** |
 | `lib/records.py` | Add / edit / delete / check out / return / renew. The `TABLES` dictionary describes every table and can drive web forms later. |
 | `sql/create.sql`, `sql/views.sql`, `sql/populate.sql` | The SQL, also runnable by hand in SQL Developer. |
+
+## SQL echo
+
+Whenever the program runs SQL (menu or web), it prints the statement in the terminal first, for example:
+```
+SQL> SELECT * FROM Book WHERE UPPER(Genre) = UPPER(:genre);
+       binds: {'genre': 'horror'}
+```
+It is on by default. Put `SHOW_SQL=0` in `.env` to turn it off. Passwords are never printed.
 
 ## Notes for the oral
 
@@ -77,6 +87,21 @@ then `DB_USER=library`, `DB_PASSWORD=change_me`, `DB_DSN=localhost:1521/FREEPDB1
 - A book can only be out once; the schema can't express that, so `checkout_book()` checks it.
 - Active-loan dates in the dummy data are relative to `SYSDATE`, so overdue reports work on any demo day.
 
-## Not done yet (bonus)
+## Web interface (bonus)
 
-Web interface (Flask) with a page per table - reuse `lib/` unchanged.
+```
+pip install -r requirements.txt     # adds Flask
+python app.py                       # then open http://127.0.0.1:5001
+```
+It uses the same `lib/` code as the text menu. If `.env` has DB_USER, DB_PASSWORD and DB_DSN it connects
+automatically; otherwise it shows a login page.
+
+| Page | What it does |
+|---|---|
+| Home | Drop / Create / Populate Tables buttons, row counts per table, links to the rest. Stop the server with Ctrl+C. |
+| Queries | Every report; the ones that need input show a form (with a list of valid values). "Show SQL" under each result. |
+| Tables | One page per table: list, search across all columns, add, edit, delete. Foreign keys are dropdowns (e.g. a Loan picks its Book, Member and Staff by name). |
+| Circulation | Check out (only free books are offered), return and renew. |
+
+Port 5001 is used because macOS reserves 5000 for AirPlay. The server handles one request at a time on purpose
+(one shared database connection), so run it for one person.
